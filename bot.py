@@ -24,9 +24,7 @@ def to_stylish(text):
     return result
 
 def clean_number(number):
-    # +91 ya 91 hatana
     number = re.sub(r'^\+?91', '', number)
-    # Sirf digits
     number = re.sub(r'\D', '', number)
     return number
 
@@ -36,10 +34,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 📌 /num 9876543210
 📌 /number 9876543210
-📌 Ya sirf number likho:
-   • 9876543210
-   • +919876543210
-   • 919876543210
+📌 Ya sirf number likho
 
 💀 {to_stylish('api by patel')}""",
         parse_mode="Markdown"
@@ -52,30 +47,23 @@ async def number_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # 🔥 Sirf number detect
         message_text = update.message.text.strip()
-        
-        # +91 ke saath ya bina +91 ke number detect
         match = re.search(r'(\+?91)?\s*([6-9]\d{9})', message_text)
         if match:
             number = clean_number(match.group(0))
         else:
-            # Agar number nahi hai to kuch mat karo
             return
 
-    # Validate number (10 digit)
     if len(number) != 10:
         await update.message.reply_text(
             f"""❌ {to_stylish('invalid number')}
-
 {to_stylish('10-digit number daalein')}
 💀 {to_stylish('api by patel')}""",
             parse_mode="Markdown"
         )
         return
 
-    # Loading
     loading_msg = await update.message.reply_text(
         f"""⏳ {to_stylish('searching...')}
-
 🔍 {to_stylish('database me dhundh rahe hain')}
 💀 {to_stylish('api by patel')}""",
         parse_mode="Markdown"
@@ -114,49 +102,30 @@ async def number_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await loading_msg.edit_text(
                 f"""<blockquote>
 ❌ {to_stylish('no data found')}
-
 {to_stylish('kisi aur number ki koshish karein')}
 💀 {to_stylish('api by patel')}</blockquote>""",
                 parse_mode="HTML"
             )
 
-    except requests.exceptions.Timeout:
-        await loading_msg.edit_text(
-            f"""<blockquote>
-⏰ {to_stylish('timeout error')}
-
-{to_stylish('api slow hai, try again')}
-💀 {to_stylish('api by patel')}</blockquote>""",
-            parse_mode="HTML"
-        )
     except Exception as e:
         await loading_msg.edit_text(
             f"""<blockquote>
 ⚠️ {to_stylish('error')}
-
 {to_stylish(str(e)[:40])}
 💀 {to_stylish('api by patel')}</blockquote>""",
             parse_mode="HTML"
         )
 
-async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        f"""<blockquote>
-❓ {to_stylish('unknown command')}
-
-📌 /start {to_stylish('ya')} {to_stylish('direct number daalein')}
-💀 {to_stylish('api by patel')}</blockquote>""",
-        parse_mode="HTML"
-    )
-
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
+    # 🔥 COMMANDS - SAB SE PEHLE ADD KARO
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("num", number_info))      # 🔥 /num command
     app.add_handler(CommandHandler("number", number_info))   # 🔥 /number command
+    
+    # 🔥 MESSAGE HANDLER - Number detect
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, number_info))
-    app.add_handler(MessageHandler(filters.COMMAND, handle_unknown))
 
     print("🤖 Bot is running...")
     print("✅ /num, /number, direct number, +91 support")
