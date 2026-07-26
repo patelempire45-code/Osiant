@@ -1,12 +1,12 @@
 import re
 import requests
+import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-BOT_TOKEN = "8876462233:AAGVHhGhq-p7ObtWxuMX-9fUUPaK6609h6w"
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8876462233:AAGVHhGhq-p7ObtWxuMX-9fUUPaK6609h6w")
 API_URL = "https://patel-number-api.vercel.app/number?number={}"
 
-# Stylish text converter
 def to_stylish(text):
     stylish_map = {
         'a': 'ᴀ', 'b': 'ʙ', 'c': 'ᴄ', 'd': 'ᴅ', 'e': 'ᴇ', 'f': 'ꜰ',
@@ -23,35 +23,54 @@ def to_stylish(text):
             result += char
     return result
 
+def clean_number(number):
+    # +91 ya 91 hatana
+    number = re.sub(r'^\+?91', '', number)
+    # Sirf digits
+    number = re.sub(r'\D', '', number)
+    return number
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"""🔍 {to_stylish('number info bot')}
 
+📌 /num 9876543210
 📌 /number 9876543210
-📌 Ya sirf number likho: 9876543210
+📌 Ya sirf number likho:
+   • 9876543210
+   • +919876543210
+   • 919876543210
 
 💀 {to_stylish('api by patel')}""",
         parse_mode="Markdown"
     )
 
 async def number_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Detect number
+    # 🔥 Command se number
     if context.args:
-        number = context.args[0]
+        number = clean_number(context.args[0])
     else:
-        message_text = update.message.text
-        match = re.search(r'\b[6-9]\d{9}\b', message_text)
+        # 🔥 Sirf number detect
+        message_text = update.message.text.strip()
+        
+        # +91 ke saath ya bina +91 ke number detect
+        match = re.search(r'(\+?91)?\s*([6-9]\d{9})', message_text)
         if match:
-            number = match.group()
+            number = clean_number(match.group(0))
         else:
-            await update.message.reply_text(
-                f"""❌ {to_stylish('invalid number')}
+            # Agar number nahi hai to kuch mat karo
+            return
+
+    # Validate number (10 digit)
+    if len(number) != 10:
+        await update.message.reply_text(
+            f"""❌ {to_stylish('invalid number')}
 
 {to_stylish('10-digit number daalein')}
 💀 {to_stylish('api by patel')}""",
-                parse_mode="Markdown"
-            )
-            return
+            parse_mode="Markdown"
+        )
+        return
 
     # Loading
     loading_msg = await update.message.reply_text(
@@ -70,7 +89,6 @@ async def number_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
             records = data["records"]
             total = data["total_records"]
             
-            # 🔥 BLACK QUOTE + ALL RECORDS
             reply_text = f"""<blockquote>
 📱 {to_stylish('number info')}
 ━━━━━━━━━━━━━━━━━━━━
@@ -78,7 +96,7 @@ async def number_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📊 {to_stylish('total records')}: {total}
 ━━━━━━━━━━━━━━━━━━━━\n\n"""
             
-            for i, rec in enumerate(records, 1):  # 🔥 ALL RECORDS
+            for i, rec in enumerate(records, 1):
                 reply_text += f"""📌 {to_stylish(f'record #{i}')}
 👤 {to_stylish('name')}: {rec.get('NAME', 'N/A')}
 📛 {to_stylish('father')}: {rec.get('fname', 'N/A')}
@@ -90,7 +108,6 @@ async def number_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             reply_text += f"""💀 {to_stylish('api by patel')}</blockquote>"""
             
-            # 🔥 BLACK QUOTE - Edit loading message with blockquote
             await loading_msg.edit_text(reply_text, parse_mode="HTML")
                 
         else:
@@ -136,13 +153,14 @@ def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("number", number_info))
+    app.add_handler(CommandHandler("num", number_info))      # 🔥 /num command
+    app.add_handler(CommandHandler("number", number_info))   # 🔥 /number command
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, number_info))
     app.add_handler(MessageHandler(filters.COMMAND, handle_unknown))
 
-    print("🤖 Bot is running with Blockquote + All Records...")
-    print("✅ Group + Private supported!")
-    app.run_polling()
+    print("🤖 Bot is running...")
+    print("✅ /num, /number, direct number, +91 support")
+    app.run_polling(allowed_updates=["message"])
 
 if __name__ == "__main__":
     main()
